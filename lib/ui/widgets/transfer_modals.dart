@@ -7,7 +7,9 @@ import '../../core/theme/app_theme.dart';
 import '../../models/transfer_item.dart';
 import '../../state/transfer_state.dart';
 
-/// Ultra-Premium Agency-Tier Incoming File Transfer Request Modal
+
+
+/// Minimalist Matte Incoming File Transfer Request Dialog
 class IncomingTransferDialog extends StatelessWidget {
   final TransferState transferState;
 
@@ -26,36 +28,33 @@ class IncomingTransferDialog extends StatelessWidget {
         );
 
     return Dialog(
-      backgroundColor: AppTheme.surfaceCardDark,
+      backgroundColor: AppTheme.surfaceCardElevated,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: AppTheme.borderDark, width: 1.2),
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: AppTheme.borderDark, width: 1.0),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.04),
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppTheme.cardElevation,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Glowing Circular Countdown Ring with Beacon Icon
+            // Circular Countdown Ring with Download Icon
             Stack(
               alignment: Alignment.center,
               children: [
                 SizedBox(
-                  width: 66,
-                  height: 66,
+                  width: 64,
+                  height: 64,
                   child: CircularProgressIndicator(
                     value: progressVal,
-                    strokeWidth: 3.5,
-                    backgroundColor: AppTheme.borderDark,
+                    strokeWidth: 3.0,
+                    backgroundColor: Colors.white.withValues(alpha: 0.08),
                     valueColor: const AlwaysStoppedAnimation(AppTheme.primary),
                   ),
                 ),
@@ -64,30 +63,22 @@ class IncomingTransferDialog extends StatelessWidget {
                   height: 50,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.primary.withValues(alpha: 0.25),
-                        AppTheme.secondary.withValues(alpha: 0.15),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: AppTheme.surfaceDark,
                     border: Border.all(
-                      color: AppTheme.primary.withValues(alpha: 0.4),
+                      color: AppTheme.primary.withValues(alpha: 0.35),
                       width: 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        spreadRadius: 1,
+                        color: AppTheme.primary.withValues(alpha: 0.2),
+                        blurRadius: 10,
                       ),
                     ],
                   ),
                   child: const Icon(
                     Icons.download_rounded,
                     color: AppTheme.primaryLight,
-                    size: 26,
+                    size: 24,
                   ),
                 ),
               ],
@@ -97,9 +88,9 @@ class IncomingTransferDialog extends StatelessWidget {
 
             Text(
               'Incoming File Transfer',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
+              style: GoogleFonts.inter(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
                 letterSpacing: -0.3,
               ),
@@ -110,9 +101,9 @@ class IncomingTransferDialog extends StatelessWidget {
 
             Text(
               'From ${item.peerName} (${item.peerIp})',
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.inter(
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w400,
                 color: AppTheme.textSecondary,
               ),
               maxLines: 1,
@@ -122,31 +113,31 @@ class IncomingTransferDialog extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Double-Bezel File Info Box
+            // File Info Box
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppTheme.borderDark),
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color: AppTheme.secondary.withValues(alpha: 0.15),
+                      color: AppTheme.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: AppTheme.secondary.withValues(alpha: 0.3),
+                        color: AppTheme.primary.withValues(alpha: 0.25),
                       ),
                     ),
                     child: const Icon(
                       Icons.insert_drive_file_rounded,
-                      color: AppTheme.secondary,
-                      size: 22,
+                      color: AppTheme.primaryLight,
+                      size: 20,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -156,9 +147,9 @@ class IncomingTransferDialog extends StatelessWidget {
                       children: [
                         Text(
                           item.fileName,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.inter(
                             fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             color: AppTheme.textPrimary,
                             letterSpacing: -0.2,
                           ),
@@ -168,9 +159,9 @@ class IncomingTransferDialog extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           item.formattedSize,
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.inter(
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w400,
                             color: AppTheme.textSecondary,
                           ),
                         ),
@@ -185,39 +176,36 @@ class IncomingTransferDialog extends StatelessWidget {
 
             Text(
               'Auto-rejects in ${countdown}s',
-              style: GoogleFonts.plusJakartaSans(
+              style: GoogleFonts.inter(
                 fontSize: 12,
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w600,
+                color: AppTheme.textMuted,
+                fontWeight: FontWeight.w500,
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // Action Buttons Row (Equal Expansion to Prevent Overflows)
+            // Action Buttons Row
             Row(
               children: [
                 Expanded(
                   child: SizedBox(
-                    height: 42,
+                    height: 40,
                     child: OutlinedButton(
                       onPressed: () => transferState.rejectIncoming(),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         foregroundColor: AppTheme.textSecondary,
-                        side: const BorderSide(
-                          color: AppTheme.borderDark,
-                          width: 1.2,
-                        ),
+                        side: const BorderSide(color: AppTheme.borderDark),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: Text(
                         'Decline',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -226,21 +214,22 @@ class IncomingTransferDialog extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: SizedBox(
-                    height: 42,
+                    height: 40,
                     child: ElevatedButton(
                       onPressed: () => transferState.acceptIncoming(),
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: Text(
                         'Accept',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.textInverse,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -252,15 +241,15 @@ class IncomingTransferDialog extends StatelessWidget {
         ),
       ),
     ).animate().scale(
-      begin: const Offset(0.95, 0.95),
+      begin: const Offset(0.96, 0.96),
       end: const Offset(1, 1),
-      duration: 180.ms,
+      duration: 160.ms,
       curve: Curves.easeOutCubic,
     );
   }
 }
 
-/// Ultra-Premium Agency-Tier Active Transfer Progress Modal
+/// Minimalist Matte Active Transfer Progress Modal
 class TransferProgressModal extends StatelessWidget {
   final TransferItem item;
   final VoidCallback onCancel;
@@ -301,47 +290,38 @@ class TransferProgressModal extends StatelessWidget {
     }
 
     return Dialog(
-      backgroundColor: AppTheme.surfaceCardDark,
+      backgroundColor: AppTheme.surfaceCardElevated,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: AppTheme.borderDark, width: 1.2),
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: AppTheme.borderDark, width: 1.0),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.04),
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppTheme.cardElevation,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header Row with Machined Status Badge & Title
+            // Header Row
             Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: statusColor.withValues(alpha: 0.35),
                       width: 1,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: statusColor.withValues(alpha: 0.25),
-                        blurRadius: 8,
-                      ),
-                    ],
                   ),
-                  child: Icon(statusIcon, color: statusColor, size: 22),
+                  child: Icon(statusIcon, color: statusColor, size: 20),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,19 +330,19 @@ class TransferProgressModal extends StatelessWidget {
                         item.direction.isOutgoing
                             ? 'Sending File'
                             : 'Receiving File',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.inter(
                           fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary,
                           letterSpacing: -0.3,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
                         '${item.peerName} (${item.peerIp})',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.inter(
                           fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w400,
                           color: AppTheme.textSecondary,
                         ),
                         maxLines: 1,
@@ -376,13 +356,13 @@ class TransferProgressModal extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // File Details Double-Bezel Card
+            // File Details & Linear Progress Bar
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppTheme.surfaceDark,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppTheme.borderDark),
               ),
               child: Column(
@@ -390,9 +370,9 @@ class TransferProgressModal extends StatelessWidget {
                 children: [
                   Text(
                     item.fileName,
-                    style: GoogleFonts.plusJakartaSans(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
                       letterSpacing: -0.2,
                     ),
@@ -404,31 +384,30 @@ class TransferProgressModal extends StatelessWidget {
                     children: [
                       Text(
                         '${item.formattedTransferred} / ${item.formattedSize}',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.inter(
                           fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w400,
                           color: AppTheme.textSecondary,
                         ),
                       ),
                       const Spacer(),
                       Text(
                         '${item.percentage}%',
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           color: statusColor,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // High-End Progress Bar
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: item.progress.clamp(0.0, 1.0),
-                      minHeight: 6,
-                      backgroundColor: AppTheme.borderDark,
+                      minHeight: 5,
+                      backgroundColor: Colors.white.withValues(alpha: 0.08),
                       color: statusColor,
                     ),
                   ),
@@ -438,7 +417,7 @@ class TransferProgressModal extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // Live Metrics (Speed & ETA) or Verified Status
+            // Live Metrics (Speed & ETA)
             if (!isDone)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -446,39 +425,29 @@ class TransferProgressModal extends StatelessWidget {
                   Row(
                     children: [
                       const Icon(
-                        Icons.bolt_rounded,
+                        Icons.speed_rounded,
                         size: 14,
                         color: AppTheme.primaryLight,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         item.formattedSpeed,
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.inter(
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                           color: AppTheme.textSecondary,
                         ),
                       ),
                     ],
                   ),
                   if (item.eta != null)
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.timer_outlined,
-                          size: 14,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${item.eta!.inSeconds}s remaining',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      '${item.eta!.inSeconds}s remaining',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                 ],
               )
@@ -489,7 +458,7 @@ class TransferProgressModal extends StatelessWidget {
                   children: [
                     Icon(
                       isSuccess
-                          ? Icons.verified_user_rounded
+                          ? Icons.check_circle_outline_rounded
                           : Icons.info_outline_rounded,
                       size: 14,
                       color: statusColor,
@@ -498,11 +467,11 @@ class TransferProgressModal extends StatelessWidget {
                     Expanded(
                       child: Text(
                         isSuccess
-                            ? 'SHA-256 Verified • Saved successfully'
+                            ? 'Transfer completed successfully'
                             : (item.errorMessage ?? 'Transfer ended'),
-                        style: GoogleFonts.plusJakartaSans(
+                        style: GoogleFonts.inter(
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                           color: statusColor,
                         ),
                         maxLines: 1,
@@ -513,7 +482,7 @@ class TransferProgressModal extends StatelessWidget {
                 ),
               ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
             // Modal Action Buttons
             Row(
@@ -527,19 +496,19 @@ class TransferProgressModal extends StatelessWidget {
                         icon: const Icon(Icons.close_rounded, size: 16),
                         label: Text(
                           'Cancel Transfer',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.inter(
                             fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.statusError,
                           side: const BorderSide(
                             color: AppTheme.statusError,
-                            width: 1.2,
+                            width: 1.0,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
@@ -555,19 +524,19 @@ class TransferProgressModal extends StatelessWidget {
                           icon: const Icon(Icons.folder_open_rounded, size: 16),
                           label: Text(
                             'Open File',
-                            style: GoogleFonts.plusJakartaSans(
+                            style: GoogleFonts.inter(
                               fontSize: 13,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.textPrimary,
                             side: const BorderSide(
                               color: AppTheme.borderDark,
-                              width: 1.2,
+                              width: 1.0,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
@@ -581,16 +550,17 @@ class TransferProgressModal extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: onDismiss,
                         style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                         child: Text(
                           'Done',
-                          style: GoogleFonts.plusJakartaSans(
+                          style: GoogleFonts.inter(
                             fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textInverse,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -602,6 +572,138 @@ class TransferProgressModal extends StatelessWidget {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 180.ms);
+    ).animate().fadeIn(duration: 160.ms);
   }
 }
+
+/// Minimalist Horizontal Drawer / Action Card for Active Transfers
+/// Features smooth linear progress, transfer speed (MB/s), and instant action buttons
+class TransferDrawer extends StatelessWidget {
+  final TransferItem item;
+  final VoidCallback onCancel;
+  final VoidCallback onDismiss;
+
+  const TransferDrawer({
+    super.key,
+    required this.item,
+    required this.onCancel,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDone = item.status.isDone;
+    final isSuccess = item.status.isSuccess;
+
+    Color statusColor = item.status == TransferStatus.completed
+        ? AppTheme.statusOnline
+        : (item.status == TransferStatus.failed || item.status == TransferStatus.rejected
+            ? AppTheme.statusError
+            : AppTheme.primary);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCardElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderDark, width: 1),
+        boxShadow: AppTheme.cardElevation,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  item.direction.isOutgoing
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
+                  color: statusColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.fileName,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${item.peerName} • ${item.formattedTransferred} of ${item.formattedSize} (${item.formattedSpeed})',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppTheme.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (!isDone)
+                IconButton(
+                  onPressed: onCancel,
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: AppTheme.textSecondary,
+                  tooltip: 'Cancel',
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  padding: EdgeInsets.zero,
+                )
+              else if (isSuccess && item.filePath.isNotEmpty)
+                TextButton(
+                  onPressed: () => OpenFilex.open(item.filePath),
+                  child: Text(
+                    'Open',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryLight,
+                    ),
+                  ),
+                )
+              else
+                IconButton(
+                  onPressed: onDismiss,
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  color: AppTheme.statusOnline,
+                  tooltip: 'Dismiss',
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  padding: EdgeInsets.zero,
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: item.progress.clamp(0.0, 1.0),
+              minHeight: 4,
+              backgroundColor: Colors.white.withValues(alpha: 0.08),
+              color: statusColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

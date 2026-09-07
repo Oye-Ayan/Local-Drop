@@ -11,8 +11,8 @@ class ProtocolConstants {
   /// Protocol version
   static const int protocolVersion = 1;
 
-  /// Chunk size for streaming file transfers (64KB as specified in PRD FR-8)
-  static const int chunkSize = 64 * 1024;
+  /// Chunk size for streaming file transfers (512KB for ultra high-speed LAN/Wi-Fi transfers)
+  static const int chunkSize = 512 * 1024;
 
   /// Timeout for incoming transfer acceptance before auto-rejecting (seconds)
   static const int transferPromptTimeoutSeconds = 30;

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import '../core/constants/protocol_constants.dart';
@@ -40,47 +39,60 @@ class ProtocolFrame {
   }
 }
 
-/// Accumulates incoming TCP bytes and extracts complete ProtocolFrames
+/// High-performance accumulator for incoming TCP bytes with zero-copy frame slicing
 class FrameDecoder {
-  final BytesBuilder _buffer = BytesBuilder(copy: false);
+  Uint8List _buffer = Uint8List(512 * 1024);
+  int _length = 0;
 
   List<ProtocolFrame> feed(List<int> chunk) {
-    _buffer.add(chunk);
+    final needed = _length + chunk.length;
+    if (needed > _buffer.length) {
+      int newCap = _buffer.length * 2;
+      while (newCap < needed) {
+        newCap *= 2;
+      }
+      final newBuf = Uint8List(newCap);
+      newBuf.setRange(0, _length, _buffer);
+      _buffer = newBuf;
+    }
+
+    _buffer.setRange(_length, _length + chunk.length, chunk);
+    _length += chunk.length;
+
     final frames = <ProtocolFrame>[];
+    int offset = 0;
 
-    while (_buffer.length >= 5) {
-      final bytes = _buffer.toBytes();
-      final view = ByteData.view(
-        bytes.buffer,
-        bytes.offsetInBytes,
-        bytes.lengthInBytes,
-      );
-      final opCode = bytes[0];
-      final payloadLength = view.getUint32(1, Endian.big);
+    final view = ByteData.view(_buffer.buffer, _buffer.offsetInBytes);
 
+    while (_length - offset >= 5) {
+      final opCode = _buffer[offset];
+      final payloadLength = view.getUint32(offset + 1, Endian.big);
       final totalFrameLength = 5 + payloadLength;
-      if (bytes.length < totalFrameLength) {
-        // Incomplete frame, wait for more data
-        _buffer.clear();
-        _buffer.add(bytes);
-        break;
+
+      if (_length - offset < totalFrameLength) {
+        break; // Incomplete frame, wait for more data
       }
 
-      final payload = Uint8List.fromList(bytes.sublist(5, totalFrameLength));
+      final payload = Uint8List(payloadLength);
+      payload.setRange(0, payloadLength, _buffer, offset + 5);
       frames.add(ProtocolFrame(opCode: opCode, payload: payload));
 
-      final remaining = bytes.sublist(totalFrameLength);
-      _buffer.clear();
-      if (remaining.isNotEmpty) {
-        _buffer.add(remaining);
+      offset += totalFrameLength;
+    }
+
+    if (offset > 0) {
+      final remaining = _length - offset;
+      if (remaining > 0) {
+        _buffer.setRange(0, remaining, _buffer, offset);
       }
+      _length = remaining;
     }
 
     return frames;
   }
 
   void clear() {
-    _buffer.clear();
+    _length = 0;
   }
 }
 
@@ -161,6 +173,7 @@ class TransferService {
   // ==========================================
 
   void _handleIncomingConnection(Socket socket) {
+    socket.setOption(SocketOption.tcpNoDelay, true);
     final decoder = FrameDecoder();
     String? currentTransferId;
     IOSink? fileSink;
@@ -169,6 +182,7 @@ class TransferService {
     ChunkedConversionSink<List<int>>? hashSink;
     TransferItem? transferItem;
     int lastSpeedCheckTime = DateTime.now().millisecondsSinceEpoch;
+    int lastNotificationTime = DateTime.now().millisecondsSinceEpoch;
     int bytesSinceLastCheck = 0;
 
     socket.listen(
@@ -205,29 +219,54 @@ class TransferService {
                 }
 
                 if (accepted) {
-                  tempFile = await _storageService.createTempFile(
-                    currentTransferId!,
-                  );
-                  fileSink = tempFile!.openWrite();
-                  hashSinkAcc = _DigestAccumulator();
-                  hashSink = sha256.startChunkedConversion(hashSinkAcc!);
+                  try {
+                    tempFile = await _storageService.createTempFile(
+                      currentTransferId!,
+                    );
+                    fileSink = tempFile!.openWrite();
+                    hashSinkAcc = _DigestAccumulator();
+                    hashSink = sha256.startChunkedConversion(hashSinkAcc!);
 
-                  transferItem = transferItem!.copyWith(
-                    status: TransferStatus.inProgress,
-                  );
-                  _notifyTransferUpdate(transferItem!);
+                    transferItem = transferItem!.copyWith(
+                      status: TransferStatus.inProgress,
+                    );
+                    _notifyTransferUpdate(transferItem!);
 
-                  // Send accept frame
-                  final acceptPayload = utf8.encode(
-                    jsonEncode({'id': currentTransferId, 'accepted': true}),
-                  );
-                  socket.add(
-                    ProtocolFrame.encode(
-                      ProtocolConstants.msgTransferAccept,
-                      acceptPayload,
-                    ),
-                  );
-                  await socket.flush();
+                    // Send accept frame
+                    final acceptPayload = utf8.encode(
+                      jsonEncode({'id': currentTransferId, 'accepted': true}),
+                    );
+                    socket.add(
+                      ProtocolFrame.encode(
+                        ProtocolConstants.msgTransferAccept,
+                        acceptPayload,
+                      ),
+                    );
+                    await socket.flush();
+                  } catch (err) {
+                    debugPrint('Failed to prepare file storage: $err');
+                    try {
+                      final rejectPayload = utf8.encode(
+                        jsonEncode({
+                          'id': currentTransferId,
+                          'reason': 'Storage error: $err',
+                        }),
+                      );
+                      socket.add(
+                        ProtocolFrame.encode(
+                          ProtocolConstants.msgTransferReject,
+                          rejectPayload,
+                        ),
+                      );
+                      await socket.flush();
+                    } catch (_) {}
+                    socket.destroy();
+                    transferItem = transferItem!.copyWith(
+                      status: TransferStatus.failed,
+                      errorMessage: 'Storage preparation error: $err',
+                    );
+                    _notifyTransferUpdate(transferItem!);
+                  }
                 } else {
                   // Send reject frame
                   final rejectPayload = utf8.encode(
@@ -248,6 +287,18 @@ class TransferService {
                 }
               } catch (e) {
                 debugPrint('Error handling transfer request: $e');
+                try {
+                  final rejectPayload = utf8.encode(
+                    jsonEncode({'id': currentTransferId, 'reason': 'Error: $e'}),
+                  );
+                  socket.add(
+                    ProtocolFrame.encode(
+                      ProtocolConstants.msgTransferReject,
+                      rejectPayload,
+                    ),
+                  );
+                  await socket.flush();
+                } catch (_) {}
                 socket.destroy();
               }
               break;
@@ -276,7 +327,12 @@ class TransferService {
                   bytesTransferred: newTransferred,
                   speedBytesPerSec: speed,
                 );
-                _notifyTransferUpdate(transferItem!);
+
+                // Throttle progress notifications to at most once per 100ms
+                if (now - lastNotificationTime >= 100) {
+                  lastNotificationTime = now;
+                  _notifyTransferUpdate(transferItem!);
+                }
               }
               break;
 
@@ -447,9 +503,11 @@ class TransferService {
         targetPeer.port,
         timeout: const Duration(seconds: 6),
       );
+      socket.setOption(SocketOption.tcpNoDelay, true);
       _activeSockets[transferId] = socket;
 
       final acceptCompleter = Completer<bool>();
+      final completeCompleter = Completer<void>();
       _pendingAccepts[transferId] = acceptCompleter;
       final decoder = FrameDecoder();
 
@@ -466,6 +524,9 @@ class TransferService {
                 acceptCompleter.complete(false);
               }
             } else if (frame.opCode == ProtocolConstants.msgTransferComplete) {
+              if (!completeCompleter.isCompleted) {
+                completeCompleter.complete();
+              }
               item = item.copyWith(
                 status: TransferStatus.completed,
                 bytesTransferred: fileSize,
@@ -475,9 +536,12 @@ class TransferService {
               );
               _notifyTransferUpdate(item);
             } else if (frame.opCode == ProtocolConstants.msgError) {
+              if (!completeCompleter.isCompleted) {
+                completeCompleter.complete();
+              }
               item = item.copyWith(
                 status: TransferStatus.failed,
-                errorMessage: 'Transfer rejected by receiver',
+                errorMessage: 'Transfer error from receiver',
                 endTime: DateTime.now(),
               );
               _notifyTransferUpdate(item);
@@ -487,7 +551,18 @@ class TransferService {
         onError: (err) {
           debugPrint('Sender socket error: $err');
           if (!acceptCompleter.isCompleted) {
-            acceptCompleter.completeError(err);
+            acceptCompleter.complete(false);
+          }
+          if (!completeCompleter.isCompleted) {
+            completeCompleter.complete();
+          }
+        },
+        onDone: () {
+          if (!acceptCompleter.isCompleted) {
+            acceptCompleter.complete(false);
+          }
+          if (!completeCompleter.isCompleted) {
+            completeCompleter.complete();
           }
         },
       );
@@ -538,6 +613,9 @@ class TransferService {
       int bytesSinceLastCheck = 0;
 
       final fileStream = file.openRead();
+      int unflushedBytes = 0;
+      int lastNotificationTime = DateTime.now().millisecondsSinceEpoch;
+
       await for (final chunk in fileStream) {
         if (item.status == TransferStatus.cancelled) break;
 
@@ -547,8 +625,13 @@ class TransferService {
           chunk,
         );
         socket.add(frameBytes);
-        await socket
-            .flush(); // BACKPRESSURE: pauses loop until socket buffer drains
+        unflushedBytes += frameBytes.length;
+
+        // Batch socket flushes every 512KB to maintain high network throughput while respecting backpressure
+        if (unflushedBytes >= 512 * 1024) {
+          await socket.flush();
+          unflushedBytes = 0;
+        }
 
         bytesSent += chunk.length;
         bytesSinceLastCheck += chunk.length;
@@ -566,8 +649,18 @@ class TransferService {
           bytesTransferred: bytesSent,
           speedBytesPerSec: speed,
         );
-        _notifyTransferUpdate(item);
+
+        // Throttle UI stream updates to at most once every 100ms
+        if (now - lastNotificationTime >= 100) {
+          lastNotificationTime = now;
+          _notifyTransferUpdate(item);
+        }
       }
+
+      if (unflushedBytes > 0) {
+        await socket.flush();
+      }
+      _notifyTransferUpdate(item);
 
       hashSink.close();
       final finalChecksum = digestAcc.value?.toString() ?? '';
@@ -583,6 +676,11 @@ class TransferService {
         ),
       );
       await socket.flush();
+
+      try {
+        await completeCompleter.future.timeout(const Duration(seconds: 15));
+      } catch (_) {}
+      socket.destroy();
 
       return item;
     } catch (e) {

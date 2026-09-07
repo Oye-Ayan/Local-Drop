@@ -17,28 +17,62 @@ class StorageService {
       return customBaseDirectory!;
     }
 
-    Directory? baseDir;
+    final candidates = <Directory>[];
 
     try {
       if (Platform.isAndroid) {
-        baseDir = await getDownloadsDirectory();
-        baseDir ??= await getExternalStorageDirectory();
+        // 1. Try public Download folder if accessible
+        candidates.add(Directory('/storage/emulated/0/Download'));
+
+        // 2. Try app-specific external storage downloads (always accessible without permissions)
+        final extDirs = await getExternalStorageDirectories(
+          type: StorageDirectory.downloads,
+        );
+        if (extDirs != null && extDirs.isNotEmpty) {
+          candidates.addAll(extDirs);
+        }
+
+        // 3. Try app-specific external files dir
+        final extDir = await getExternalStorageDirectory();
+        if (extDir != null) {
+          candidates.add(extDir);
+        }
       } else if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
-        baseDir = await getDownloadsDirectory();
+        final dl = await getDownloadsDirectory();
+        if (dl != null) candidates.add(dl);
       }
     } catch (_) {}
 
     try {
-      baseDir ??= await getApplicationDocumentsDirectory();
-    } catch (_) {
-      baseDir ??= Directory.systemTemp;
+      final docDir = await getApplicationDocumentsDirectory();
+      candidates.add(docDir);
+    } catch (_) {}
+
+    candidates.add(Directory.systemTemp);
+
+    for (final base in candidates) {
+      try {
+        final localDropDir = Directory(p.join(base.path, _folderName));
+        if (!await localDropDir.exists()) {
+          await localDropDir.create(recursive: true);
+        }
+        // Verify write access with a probe
+        final probe = File(
+          p.join(localDropDir.path, '.probe_${DateTime.now().millisecondsSinceEpoch}'),
+        );
+        await probe.writeAsString('ok');
+        await probe.delete();
+        return localDropDir;
+      } catch (_) {
+        continue;
+      }
     }
 
-    final localDropDir = Directory(p.join(baseDir.path, _folderName));
-    if (!await localDropDir.exists()) {
-      await localDropDir.create(recursive: true);
+    final fallback = Directory(p.join(Directory.systemTemp.path, _folderName));
+    if (!await fallback.exists()) {
+      await fallback.create(recursive: true);
     }
-    return localDropDir;
+    return fallback;
   }
 
   /// Generates a non-colliding destination file path

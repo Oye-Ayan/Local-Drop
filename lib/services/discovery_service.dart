@@ -88,11 +88,25 @@ class DiscoveryService {
     }
 
     final existing = _peers[peer.id];
+    String effectiveIp = peer.ip;
+    // Prefer numeric IPv4 over .local hostname or loopback
+    final isNewIpValid =
+        effectiveIp.isNotEmpty &&
+        !effectiveIp.endsWith('.local') &&
+        effectiveIp != '127.0.0.1' &&
+        effectiveIp != '0.0.0.0';
+
+    if (!isNewIpValid &&
+        existing != null &&
+        existing.ip.isNotEmpty &&
+        !existing.ip.endsWith('.local')) {
+      effectiveIp = existing.ip;
+    }
+
     final updated = peer.copyWith(
       lastSeen: DateTime.now(),
-      ip: (peer.ip.isNotEmpty && peer.ip != '127.0.0.1')
-          ? peer.ip
-          : (existing?.ip ?? peer.ip),
+      ip: effectiveIp,
+      port: peer.port > 0 ? peer.port : (existing?.port ?? ProtocolConstants.defaultTcpPort),
     );
 
     _peers[peer.id] = updated;
@@ -138,6 +152,9 @@ class DiscoveryService {
         reusePort: true,
       );
       _udpSocket?.broadcastEnabled = true;
+      try {
+        _udpSocket?.joinMulticast(InternetAddress('239.255.255.250'));
+      } catch (_) {}
 
       _udpSocket?.listen((RawSocketEvent event) {
         if (event == RawSocketEvent.read) {
@@ -173,14 +190,23 @@ class DiscoveryService {
       });
       final bytes = utf8.encode(payload);
 
-      // Send to local broadcast address
+      // 1. Send to universal broadcast address
       _udpSocket?.send(
         bytes,
         InternetAddress('255.255.255.255'),
         ProtocolConstants.defaultUdpPort,
       );
 
-      // Also send to subnet broadcast if local IP is known
+      // 2. Send to standard local multicast group (bypasses router broadcast filters)
+      try {
+        _udpSocket?.send(
+          bytes,
+          InternetAddress('239.255.255.250'),
+          ProtocolConstants.defaultUdpPort,
+        );
+      } catch (_) {}
+
+      // 3. Also send to subnet broadcast if local IP is known
       if (localDevice.ip.isNotEmpty && localDevice.ip.contains('.')) {
         final parts = localDevice.ip.split('.');
         if (parts.length == 4) {
@@ -205,10 +231,10 @@ class DiscoveryService {
       final peerId = json['id'] as String? ?? '';
       if (peerId.isEmpty || peerId == localDevice.id) return;
 
-      // Prefer sender IP if reported IP is empty or loopback
-      String peerIp = json['ip'] as String? ?? '';
+      // Prefer the physical sending IP that successfully delivered the datagram
+      String peerIp = datagram.address.address;
       if (peerIp.isEmpty || peerIp == '127.0.0.1' || peerIp == '0.0.0.0') {
-        peerIp = datagram.address.address;
+        peerIp = json['ip'] as String? ?? '';
       }
 
       final peer = DeviceModel(
@@ -243,6 +269,8 @@ class DiscoveryService {
         attributes: {
           'id': localDevice.id,
           'name': localDevice.name,
+          'ip': localDevice.ip,
+          'port': localDevice.port.toString(),
           'deviceType': localDevice.deviceType.name,
           'osName': localDevice.osName,
         },
@@ -266,8 +294,19 @@ class DiscoveryService {
               attrs['id'] ?? service.name.replaceFirst('localdrop-', '');
           if (peerId == localDevice.id) return;
 
-          final host = service.host;
-          final port = service.port;
+          // Prefer numeric IPv4 from attributes, fallback to service.host
+          String effectiveHost = attrs['ip'] ?? '';
+          if (effectiveHost.isEmpty ||
+              effectiveHost.endsWith('.local') ||
+              effectiveHost == '0.0.0.0' ||
+              effectiveHost == '127.0.0.1') {
+            final host = service.host;
+            if (host != null && host.isNotEmpty) {
+              effectiveHost = host;
+            }
+          }
+
+          final port = int.tryParse(attrs['port'] ?? '') ?? service.port;
           final name = attrs['name'] ?? service.name;
           final typeStr = attrs['deviceType'];
           final os = attrs['osName'] ?? '';
@@ -275,8 +314,8 @@ class DiscoveryService {
           final peer = DeviceModel(
             id: peerId,
             name: name,
-            ip: host ?? '',
-            port: port,
+            ip: effectiveHost,
+            port: port > 0 ? port : ProtocolConstants.defaultTcpPort,
             deviceType: DeviceType.fromString(typeStr),
             osName: os,
             lastSeen: DateTime.now(),

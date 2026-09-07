@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import '../core/constants/protocol_constants.dart';
 import '../models/device_model.dart';
 import '../models/transfer_item.dart';
+import '../services/history_service.dart';
 import '../services/transfer_service.dart';
 
 class TransferState extends ChangeNotifier {
   final TransferService _transferService;
+  final HistoryService? _historyService;
   StreamSubscription<TransferItem>? _updatesSubscription;
 
   TransferItem? _activeTransfer;
@@ -17,13 +19,17 @@ class TransferState extends ChangeNotifier {
   Timer? _countdownTimer;
   int _countdownSeconds = ProtocolConstants.transferPromptTimeoutSeconds;
 
-  TransferState({required TransferService transferService})
-    : _transferService = transferService {
+  TransferState({
+    required TransferService transferService,
+    HistoryService? historyService,
+  })  : _transferService = transferService,
+        _historyService = historyService {
     _init();
   }
 
   TransferItem? get activeTransfer => _activeTransfer;
   TransferItem? get incomingPrompt => _incomingPrompt;
+  HistoryService? get historyService => _historyService;
   int get countdownSeconds => _countdownSeconds;
   bool get hasIncomingPrompt => _incomingPrompt != null;
   bool get hasActiveTransfer =>
@@ -35,6 +41,9 @@ class TransferState extends ChangeNotifier {
       updatedItem,
     ) {
       _activeTransfer = updatedItem;
+      if (updatedItem.status == TransferStatus.completed) {
+        _historyService?.recordTransfer(updatedItem);
+      }
       notifyListeners();
     });
   }
@@ -86,20 +95,58 @@ class TransferState extends ChangeNotifier {
   /// Opens the native OS file picker and initiates transfer to target peer
   Future<void> pickAndSendFile(DeviceModel targetPeer) async {
     try {
+      if (targetPeer.ip.isEmpty || targetPeer.ip == '0.0.0.0' || targetPeer.ip.endsWith('.local')) {
+        _activeTransfer = TransferItem(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          fileName: 'File',
+          fileSizeBytes: 0,
+          filePath: '',
+          direction: TransferDirection.outgoing,
+          peerId: targetPeer.id,
+          peerName: targetPeer.name,
+          peerIp: targetPeer.ip,
+          status: TransferStatus.failed,
+          errorMessage: 'Cannot connect to peer with invalid IP: ${targetPeer.ip}',
+        );
+        notifyListeners();
+        return;
+      }
+
       final result = await FilePicker.pickFiles(
         allowMultiple: false,
         type: FileType.any,
       );
 
-      if (result != null &&
-          result.files.isNotEmpty &&
-          result.files.first.path != null) {
-        final filePath = result.files.first.path!;
-        final file = File(filePath);
-        await sendFile(targetPeer: targetPeer, file: file);
+      if (result != null && result.files.isNotEmpty) {
+        final picked = result.files.first;
+        File? file;
+        if (picked.path != null && picked.path!.isNotEmpty) {
+          file = File(picked.path!);
+        } else if (picked.bytes != null) {
+          final tempDir = Directory.systemTemp;
+          file = File('${tempDir.path}/${picked.name}');
+          await file.writeAsBytes(picked.bytes!);
+        }
+
+        if (file != null && await file.exists()) {
+          await sendFile(targetPeer: targetPeer, file: file);
+        }
       }
     } catch (e) {
       debugPrint('File picker error: $e');
+      _activeTransfer = TransferItem(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        fileName: 'File',
+        fileSizeBytes: 0,
+        filePath: '',
+        direction: TransferDirection.outgoing,
+        peerId: targetPeer.id,
+        peerName: targetPeer.name,
+        peerIp: targetPeer.ip,
+        status: TransferStatus.failed,
+        errorMessage: 'File selection error: $e',
+      );
+      notifyListeners();
     }
   }
 

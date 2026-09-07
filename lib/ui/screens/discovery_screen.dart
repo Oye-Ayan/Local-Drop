@@ -1,34 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:localdrop/core/constants/protocol_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/device_model.dart';
+import '../../services/history_service.dart';
 import '../../state/discovery_state.dart';
 import '../../state/transfer_state.dart';
 import '../widgets/device_card.dart';
-import '../widgets/radar_pulse.dart';
+import '../widgets/history_modal.dart';
+import '../widgets/peer_radar.dart';
 import '../widgets/transfer_modals.dart';
 
 /// Ethereal Obsidian LocalDrop Discovery Screen
 class DiscoveryScreen extends StatefulWidget {
   final DiscoveryState discoveryState;
   final TransferState? transferState;
+  final HistoryService? historyService;
 
   const DiscoveryScreen({
     super.key,
     required this.discoveryState,
     this.transferState,
+    this.historyService,
   });
 
   @override
   State<DiscoveryScreen> createState() => _DiscoveryScreenState();
 }
 
-class _DiscoveryScreenState extends State<DiscoveryScreen> {
+class _DiscoveryScreenState extends State<DiscoveryScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scanSpinController;
+
   @override
   void initState() {
     super.initState();
     widget.discoveryState.initialize();
+    _scanSpinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scanSpinController.dispose();
+    super.dispose();
   }
 
   void _showEditNameDialog(BuildContext context, String currentName) {
@@ -43,16 +60,16 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         ),
         title: Text(
           'Edit Device Name',
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.inter(
             fontSize: 18,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             color: AppTheme.textPrimary,
           ),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: GoogleFonts.plusJakartaSans(
+          style: GoogleFonts.inter(
             color: AppTheme.textPrimary,
             fontSize: 15,
           ),
@@ -81,7 +98,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               'Cancel',
-              style: GoogleFonts.plusJakartaSans(color: AppTheme.textSecondary),
+              style: GoogleFonts.inter(color: AppTheme.textSecondary),
             ),
           ),
           ElevatedButton(
@@ -93,6 +110,130 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               }
             },
             child: const Text('Save Name'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSendByIpDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceCardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppTheme.borderDark),
+        ),
+        title: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.send_to_mobile_rounded,
+                color: AppTheme.primaryLight,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Direct IP Share',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter the destination device\'s local IP address (shown at the top of the other device\'s screen under "THIS DEVICE"):',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '💡 Normally, devices on the same Wi-Fi discover automatically. Use this only if automatic scan fails.',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppTheme.primaryLight,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              style: GoogleFonts.inter(
+                color: AppTheme.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                hintText: 'e.g. 10.10.20.121',
+                hintStyle: const TextStyle(color: AppTheme.textMuted),
+                filled: true,
+                fillColor: AppTheme.surfaceDark,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.borderDark),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primary,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(color: AppTheme.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final ip = controller.text.trim();
+              if (ip.isNotEmpty) {
+                Navigator.pop(ctx);
+                final targetDevice = DeviceModel(
+                  id: 'direct-$ip',
+                  name: 'Target ($ip)',
+                  ip: ip,
+                  port: ProtocolConstants.defaultTcpPort,
+                  deviceType: DeviceType.unknown,
+                  osName: 'Direct Peer',
+                );
+                widget.transferState?.pickAndSendFile(targetDevice);
+              }
+            },
+            child: const Text('Pick & Send'),
           ),
         ],
       ),
@@ -113,7 +254,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             Expanded(
               child: Text(
                 'Clipboard sync with ${peer.name} will be enabled in Phase 4.',
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.inter(
                   fontSize: 13,
                   color: AppTheme.textPrimary,
                 ),
@@ -133,6 +274,105 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     );
   }
 
+
+  void _onBroadcastTap(BuildContext context, List<DeviceModel> peers) {
+    if (peers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No nearby devices discovered yet. Open LocalDrop on another device to connect.',
+            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textPrimary),
+          ),
+          backgroundColor: AppTheme.surfaceCardElevated,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: AppTheme.borderDark),
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    if (peers.length == 1) {
+      widget.transferState?.pickAndSendFile(peers.first);
+      return;
+    }
+
+    // Multiple peers: show clean modal picker
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceCardElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: AppTheme.borderDark),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select Destination Device',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...peers.map(
+                (peer) => ListTile(
+                  leading: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceDark,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.borderDark),
+                    ),
+                    child: Icon(
+                      peer.deviceType.icon,
+                      color: AppTheme.primaryLight,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    peer.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  subtitle: Text(
+                    peer.ip.isNotEmpty ? peer.ip : 'Local Peer',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: AppTheme.textMuted,
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.transferState?.pickAndSendFile(peer);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final listenables = <Listenable>[widget.discoveryState];
@@ -145,526 +385,587 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       builder: (context, _) {
         final state = widget.discoveryState;
         final local = state.localDevice;
+        if (local == null) {
+          return const Scaffold(
+            backgroundColor: AppTheme.bgDark,
+            body: Center(
+              child: CircularProgressIndicator(color: AppTheme.primary),
+            ),
+          );
+        }
         final peers = state.peers;
         final transfer = widget.transferState;
 
+        if (state.isScanning) {
+          if (!_scanSpinController.isAnimating) {
+            _scanSpinController.repeat();
+          }
+        } else {
+          if (_scanSpinController.isAnimating) {
+            _scanSpinController.stop();
+            _scanSpinController.reset();
+          }
+        }
+
         return Scaffold(
-          extendBodyBehindAppBar: false,
+          backgroundColor: AppTheme.bgDark,
           appBar: AppBar(
             backgroundColor: AppTheme.bgDark,
+            elevation: 0,
+            scrolledUnderElevation: 0,
             title: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 28,
+                  height: 28,
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primary.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: AppTheme.microShadow,
                   ),
                   child: const Icon(
                     Icons.wifi_tethering_rounded,
-                    color: AppTheme.textInverse,
-                    size: 20,
+                    color: Colors.white,
+                    size: 16,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  'LocalDrop',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 19,
-                    letterSpacing: -0.4,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'LocalDrop',
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      letterSpacing: -0.4,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
                 ),
               ],
             ),
             actions: [
+              // 1. Transfer History Action
+              IconButton(
+                icon: const Icon(Icons.history_rounded, size: 20),
+                tooltip: 'Transfer History',
+                color: AppTheme.textSecondary,
+                onPressed: () {
+                  final hist = widget.historyService ??
+                      widget.transferState?.historyService;
+                  if (hist != null) {
+                    HistoryModal.show(context, hist);
+                  }
+                },
+              ),
+
+              // 2. Direct IP Share
+              IconButton(
+                icon: const Icon(Icons.send_to_mobile_rounded, size: 20),
+                tooltip: 'Direct IP Share',
+                color: AppTheme.textSecondary,
+                onPressed: () => _showSendByIpDialog(context),
+              ),
+
+              // 3. Rescan Network (sleek smooth rotation when scanning, replaces raw spinner)
               IconButton(
                 icon: state.isScanning
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
+                    ? RotationTransition(
+                        turns: _scanSpinController,
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          size: 20,
                           color: AppTheme.primary,
                         ),
                       )
-                    : const Icon(Icons.refresh_rounded),
-                tooltip: 'Rescan Network',
+                    : const Icon(
+                        Icons.refresh_rounded,
+                        size: 20,
+                        color: AppTheme.textSecondary,
+                      ),
+                tooltip: state.isScanning ? 'Scanning network...' : 'Rescan Network',
                 onPressed: state.isScanning ? null : () => state.refresh(),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
             ],
           ),
-          body: Stack(
-            children: [
-              // Ambient Radial Glow 1: Cyan Orb
-              Positioned(
-                top: -80,
-                right: -80,
-                child: Container(
-                  width: 220,
-                  height: 220,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppTheme.primary.withValues(alpha: 0.08),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth >= 750;
 
-              // Ambient Radial Glow 2: Indigo Orb
-              Positioned(
-                top: 250,
-                left: -100,
-                child: Container(
-                  width: 260,
-                  height: 260,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppTheme.secondary.withValues(alpha: 0.07),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Main Scrollable List
-              RefreshIndicator(
-                color: AppTheme.primary,
-                backgroundColor: AppTheme.surfaceCardDark,
-                onRefresh: () => state.refresh(),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(bottom: 32),
-                  children: [
-                    // 1. Local Device Status Card (Machined Double-Bezel)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.03),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: AppTheme.borderDark,
-                            width: 1,
-                          ),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.surfaceCardDark,
-                            borderRadius: BorderRadius.circular(19),
-                            border: Border.all(
-                              color: AppTheme.borderSubtle,
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  // Device Icon Box
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          AppTheme.secondary.withValues(
-                                            alpha: 0.2,
-                                          ),
-                                          AppTheme.accent.withValues(
-                                            alpha: 0.1,
-                                          ),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(13),
-                                      border: Border.all(
-                                        color: AppTheme.secondary.withValues(
-                                          alpha: 0.4,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      local?.deviceType.icon ??
-                                          Icons.devices_rounded,
-                                      color: AppTheme.secondaryLight,
-                                      size: 22,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-
-                                  // Device Name & Eyebrow Tag
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Container(
-                                              width: 6,
-                                              height: 6,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: AppTheme.statusOnline,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: AppTheme.statusOnline
-                                                        .withValues(alpha: 0.6),
-                                                    blurRadius: 4,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              'THIS DEVICE',
-                                              style:
-                                                  GoogleFonts.plusJakartaSans(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w800,
-                                                    color:
-                                                        AppTheme.secondaryLight,
-                                                    letterSpacing: 1.0,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          local?.name ?? 'Detecting device...',
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTheme.textPrimary,
-                                            letterSpacing: -0.3,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Edit Button
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit_outlined,
-                                      size: 18,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                    tooltip: 'Edit Device Name',
-                                    onPressed: local != null
-                                        ? () => _showEditNameDialog(
-                                            context,
-                                            local.name,
-                                          )
-                                        : null,
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 14),
-                              const Divider(
-                                height: 1,
-                                color: AppTheme.borderSubtle,
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Network Info & OS Tag
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AppTheme.statusOnline,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.statusOnline
-                                              .withValues(alpha: 0.5),
-                                          blurRadius: 5,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      local != null
-                                          ? '${local.ip}:${local.port}'
-                                          : 'Resolving network...',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  if (local != null && local.osName.isNotEmpty)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.surfaceDark,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                          color: AppTheme.borderDark,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        local.osName,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.textSubheading,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ).animate().fadeIn(duration: 200.ms),
-
-                    // 2. Error Message Banner (if any)
-                    if (state.errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.statusError.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: AppTheme.statusError.withValues(
-                                alpha: 0.3,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.info_outline_rounded,
-                                color: AppTheme.statusError,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  state.errorMessage!,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                    // 3. Section Header: Nearby Devices
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Nearby Devices',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.textPrimary,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: AppTheme.primary.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Text(
-                              '${peers.length}',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.primaryLight,
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          if (state.isScanning)
-                            Row(
-                              children: [
-                                Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: AppTheme.primary,
-                                      ),
-                                    )
-                                    .animate(
-                                      onPlay: (c) => c.repeat(reverse: true),
-                                    )
-                                    .scale(
-                                      begin: const Offset(0.7, 0.7),
-                                      end: const Offset(1.3, 1.3),
-                                      duration: 700.ms,
-                                    ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Scanning...',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
+              return Stack(
+                children: [
+                  if (isDesktop)
+                    _buildDesktopLayout(
+                      state,
+                      local,
+                      peers,
+                      transfer,
+                      constraints,
+                    )
+                  else
+                    _buildMobileLayout(
+                      state,
+                      local,
+                      peers,
+                      transfer,
+                      constraints,
                     ),
 
-                    // 4. Content: Empty State or Peer Cards
-                    if (peers.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 24,
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const RadarPulse(size: 130),
-                              const SizedBox(height: 20),
-                              Text(
-                                'Scanning for devices',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.textPrimary,
-                                  letterSpacing: -0.2,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Ensure other devices are on the same Wi-Fi\nnetwork with LocalDrop running.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppTheme.textSecondary,
-                                  height: 1.45,
-                                ),
-                              ),
-                              const SizedBox(height: 22),
-                              SizedBox(
-                                height: 40,
-                                child: OutlinedButton.icon(
-                                  onPressed: () => state.refresh(),
-                                  icon: const Icon(
-                                    Icons.refresh_rounded,
-                                    size: 16,
-                                  ),
-                                  label: const Text('Rescan Network'),
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                      color: AppTheme.primary.withValues(
-                                        alpha: 0.35,
-                                      ),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      ...peers.map(
-                        (peer) => DeviceCard(
-                          device: peer,
-                          onSendFile: transfer != null
-                              ? () => transfer.pickAndSendFile(peer)
-                              : null,
-                          onSendClipboard: () => _onClipboardAction(peer),
-                        ),
+                  // Overlay 1: Incoming Transfer Prompt Dialog
+                  if (transfer != null && transfer.hasIncomingPrompt)
+                    Container(
+                      color: Colors.black.withValues(alpha: 0.75),
+                      alignment: Alignment.center,
+                      child: IncomingTransferDialog(transferState: transfer),
+                    ),
+
+                  // Overlay 2: Active Transfer Progress Modal
+                  if (transfer != null &&
+                      transfer.activeTransfer != null &&
+                      !transfer.hasIncomingPrompt)
+                    Container(
+                      color: Colors.black.withValues(alpha: 0.75),
+                      alignment: Alignment.center,
+                      child: TransferProgressModal(
+                        item: transfer.activeTransfer!,
+                        onCancel: transfer.cancelActiveTransfer,
+                        onDismiss: transfer.clearActiveTransfer,
                       ),
-                  ],
-                ),
-              ),
-
-              // Overlay 1: Incoming Transfer Prompt Dialog
-              if (transfer != null && transfer.hasIncomingPrompt)
-                Container(
-                  color: Colors.black.withValues(alpha: 0.75),
-                  alignment: Alignment.center,
-                  child: IncomingTransferDialog(transferState: transfer),
-                ),
-
-              // Overlay 2: Active Transfer Progress Modal
-              if (transfer != null &&
-                  transfer.activeTransfer != null &&
-                  !transfer.hasIncomingPrompt)
-                Container(
-                  color: Colors.black.withValues(alpha: 0.75),
-                  alignment: Alignment.center,
-                  child: TransferProgressModal(
-                    item: transfer.activeTransfer!,
-                    onCancel: transfer.cancelActiveTransfer,
-                    onDismiss: transfer.clearActiveTransfer,
-                  ),
-                ),
-            ],
+                    ),
+                ],
+              );
+            },
           ),
         );
       },
+    );
+  }
+
+  /// Top Status Header Pill showing Wi-Fi status, green dot, and local IP/device identifier
+  Widget _buildStatusHeader(DeviceModel local, bool isScanning) {
+    final ipText = local.ip.isNotEmpty
+        ? '${local.ip}:${local.port}'
+        : 'Connecting...';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 1. Subtle Wi-Fi Status Pill (constrained to prevent overflow on narrow screens)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceDark,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.borderDark, width: 1),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Green signal dot
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.statusOnline,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Connected • $ipText',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // 2. User Device Identity Bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  local.name,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 14),
+                color: AppTheme.textMuted,
+                tooltip: 'Edit Device Name',
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                padding: EdgeInsets.zero,
+                onPressed: () => _showEditNameDialog(context, local.name),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Interactive Action Zone:
+  /// - Floating drag-and-drop target area ("Drop files here or tap to broadcast")
+  /// - Live Transfer Drawer showing progress, speed, and action buttons when active
+  Widget _buildActionZone(List<DeviceModel> peers, TransferState? transfer) {
+    final activeItem = transfer?.activeTransfer;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 1. Active Transfer Progress Card (if any transfer in progress)
+        if (activeItem != null)
+          TransferDrawer(
+            item: activeItem,
+            onCancel: () => transfer?.cancelActiveTransfer(),
+            onDismiss: () => transfer?.clearActiveTransfer(),
+          ),
+
+        // 2. Floating Drag-and-Drop / Broadcast Action Zone
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _onBroadcastTap(context, peers),
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceDark,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.borderDark, width: 1),
+                  boxShadow: AppTheme.microShadow,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.file_upload_outlined,
+                        color: AppTheme.primaryLight,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Drop files here or tap to broadcast',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '100% Lossless Original Quality • Bit-for-bit SHA-256',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.primaryLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Mobile Layout (< 750px): Elegant single-column flow with central radar and action zone
+  Widget _buildMobileLayout(
+    DiscoveryState state,
+    DeviceModel local,
+    List<DeviceModel> peers,
+    TransferState? transfer,
+    BoxConstraints constraints,
+  ) {
+    final radarDiameter = (constraints.maxWidth * 0.82).clamp(260.0, 320.0);
+
+    return Column(
+      children: [
+        // Top Status Header Pill
+        _buildStatusHeader(local, state.isScanning),
+
+        // Scrollable central area
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+
+                // Central Peer Radar (Main View)
+                PeerRadar(
+                  localDevice: local,
+                  peers: peers,
+                  size: radarDiameter,
+                  isScanning: state.isScanning,
+                  onPeerTap: (peer) => transfer?.pickAndSendFile(peer),
+                  onCenterTap: () => _showEditNameDialog(context, local.name),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Section: Discovered Peers or Friendly Empty State
+                if (peers.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Nearby Devices',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceDark,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppTheme.borderDark),
+                          ),
+                          child: Text(
+                            '${peers.length}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryLight,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ...peers.map(
+                    (peer) => DeviceCard(
+                      device: peer,
+                      onSendFile: transfer != null
+                          ? () => transfer.pickAndSendFile(peer)
+                          : null,
+                      onSendClipboard: () => _onClipboardAction(peer),
+                    ),
+                  ),
+                ] else ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 12,
+                    ),
+                    child: Text(
+                      'Open LocalDrop on another device (PC or phone) on this Wi-Fi network.\nThey will appear here automatically — no IP needed!',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: AppTheme.textMuted,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+
+        // Interactive Action Zone
+        _buildActionZone(peers, transfer),
+      ],
+    );
+  }
+
+  /// Desktop Layout (>= 750px): Clean side-by-side split layout
+  Widget _buildDesktopLayout(
+    DiscoveryState state,
+    DeviceModel local,
+    List<DeviceModel> peers,
+    TransferState? transfer,
+    BoxConstraints constraints,
+  ) {
+    return Row(
+      children: [
+        // Left Column: Central Peer Radar & Status Header
+        Expanded(
+          flex: 6,
+          child: Column(
+            children: [
+              _buildStatusHeader(local, state.isScanning),
+              const Spacer(),
+              PeerRadar(
+                localDevice: local,
+                peers: peers,
+                size: 340,
+                isScanning: state.isScanning,
+                onPeerTap: (peer) => transfer?.pickAndSendFile(peer),
+                onCenterTap: () => _showEditNameDialog(context, local.name),
+              ),
+              const Spacer(),
+              if (peers.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Scanning for nearby devices on the local network...',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // Vertical Divider
+        const VerticalDivider(width: 1, color: AppTheme.borderSubtle),
+
+        // Right Column: Discovered Devices List & Interactive Action Zone
+        Expanded(
+          flex: 5,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+                child: Row(
+                  children: [
+                    Text(
+                      'Nearby Devices',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceDark,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.borderDark),
+                      ),
+                      child: Text(
+                        '${peers.length}',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryLight,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: peers.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.devices_other_rounded,
+                              size: 40,
+                              color: AppTheme.textMuted.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No devices found yet',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Make sure devices are on the same local Wi-Fi',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppTheme.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: peers.length,
+                        itemBuilder: (ctx, i) => DeviceCard(
+                          device: peers[i],
+                          onSendFile: transfer != null
+                              ? () => transfer.pickAndSendFile(peers[i])
+                              : null,
+                          onSendClipboard: () => _onClipboardAction(peers[i]),
+                        ),
+                      ),
+              ),
+              _buildActionZone(peers, transfer),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

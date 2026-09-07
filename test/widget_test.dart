@@ -334,7 +334,7 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 300));
 
-        expect(find.text('Infinix NOTE 7 Lite'), findsOneWidget);
+        expect(find.widgetWithText(DeviceCard, 'Infinix NOTE 7 Lite'), findsOneWidget);
         expect(find.text('192.168.1.105:53317'), findsOneWidget);
         expect(find.text('Send File'), findsOneWidget);
         expect(find.text('Clipboard'), findsOneWidget);
