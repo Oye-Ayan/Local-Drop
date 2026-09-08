@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 
-/// Floating bottom action dock for instant file sending and web portal access
+/// Bottom action area matching the screenshot:
+/// "Drop files here or tap to broadcast" with lossless SHA-256 badge
 class ActionDock extends StatelessWidget {
   final VoidCallback onSendFiles;
   final VoidCallback onWebShare;
@@ -18,102 +19,71 @@ class ActionDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      decoration: BoxDecoration(
-        color: AppTheme.bgDark.withValues(alpha: 0.92),
-        border: const Border(top: BorderSide(color: AppTheme.borderSubtle)),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+      color: AppTheme.bgDark,
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            // Web Drop Button (Secondary / Hub)
-            Expanded(
-              flex: 4,
-              child: SizedBox(
-                height: 44,
-                child: OutlinedButton(
-                  onPressed: onWebShare,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    backgroundColor: AppTheme.surfaceCardElevated,
-                    foregroundColor: isWebPortalLive
-                        ? AppTheme.primaryLight
-                        : AppTheme.textPrimary,
-                    side: BorderSide(
-                      color: isWebPortalLive
-                          ? AppTheme.primary.withValues(alpha: 0.5)
-                          : AppTheme.borderDark,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onSendFiles,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131B2A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF1F2C42)),
+              boxShadow: AppTheme.microShadow,
+            ),
+            child: Row(
+              children: [
+                // Squircle Upload Icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A253A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.primary.withValues(alpha: 0.3),
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: const Icon(
+                    Icons.file_upload_outlined,
+                    color: AppTheme.primaryLight,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // Broadcast & Integrity Text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.public_rounded,
-                        size: 16,
-                        color: isWebPortalLive
-                            ? AppTheme.primaryLight
-                            : AppTheme.accent,
+                      Text(
+                        'Drop files here or tap to broadcast',
+                        style: GoogleFonts.inter(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          isWebPortalLive ? 'Portal Live' : 'Web Drop',
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '100% Lossless Original Quality • Bit-for-bit SHA-256',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.primaryLight.withValues(alpha: 0.85),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(width: 10),
-            // Send Files Button (Primary Action)
-            Expanded(
-              flex: 6,
-              child: SizedBox(
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: onSendFiles,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.arrow_upward_rounded, size: 16),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'Send Files',
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

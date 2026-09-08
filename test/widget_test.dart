@@ -176,9 +176,9 @@ void main() {
 
         expect(find.text('Work MacBook Pro Long Name'), findsOneWidget);
         expect(find.text('192.168.1.88:53317'), findsOneWidget);
-        expect(find.text('Send'), findsOneWidget);
+        expect(find.text('Send File'), findsOneWidget);
 
-        await tester.tap(find.text('Send'));
+        await tester.tap(find.text('Send File'));
         expect(sendFileTapped, isTrue);
 
         await tester.tap(find.byIcon(Icons.copy_rounded));
@@ -335,7 +335,7 @@ void main() {
 
         expect(find.widgetWithText(PeerTile, 'Infinix NOTE 7 Lite'), findsOneWidget);
         expect(find.text('192.168.1.105:53317'), findsOneWidget);
-        expect(find.text('Send'), findsOneWidget);
+        expect(find.text('Send File'), findsOneWidget);
 
         // Verify no layout overflow exception
         expect(tester.takeException(), isNull);

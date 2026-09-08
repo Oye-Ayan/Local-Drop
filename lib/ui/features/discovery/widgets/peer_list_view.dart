@@ -4,7 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../models/device_model.dart';
 import 'peer_tile.dart';
 
-/// Clean list of discovered peers with an Apple/Linear calm empty state
+/// Nearby Devices section with count badge and responsive peer cards
 class PeerListView extends StatelessWidget {
   final List<DeviceModel> peers;
   final bool isScanning;
@@ -21,110 +21,93 @@ class PeerListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (peers.isEmpty) {
-      return _buildEmptyState();
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Section Header: "Nearby Devices (N)"
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 6),
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
           child: Row(
             children: [
               Text(
                 'Nearby Devices',
                 style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
-                  letterSpacing: -0.1,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.2,
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceCardElevated,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.borderDark),
+                  color: const Color(0xFF142936),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   '${peers.length}',
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryLight,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primary,
                   ),
                 ),
               ),
             ],
           ),
         ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          itemCount: peers.length,
-          itemBuilder: (context, index) {
-            final peer = peers[index];
-            return PeerTile(
-              device: peer,
-              onSendFile: () => onSendFile(peer),
-              onSendClipboard: onSendClipboard != null
-                  ? () => onSendClipboard!(peer)
-                  : null,
-            );
-          },
-        ),
-      ],
-    );
-  }
 
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 52,
-              height: 52,
+        if (peers.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceCardElevated,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderSubtle),
+                color: const Color(0xFF131B2A),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.borderDark),
               ),
-              child: const Icon(
-                Icons.wifi_tethering_rounded,
-                size: 24,
-                color: AppTheme.textMuted,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              isScanning ? 'Searching for devices...' : 'Ready to Connect',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Open LocalDrop on another device on this Wi-Fi network, or tap Web Drop to transfer with any phone or PC via browser.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: AppTheme.textMuted,
-                height: 1.4,
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.wifi_tethering_rounded,
+                    size: 20,
+                    color: AppTheme.textSecondary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Searching for nearby devices on Wi-Fi...',
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: peers.length,
+            itemBuilder: (context, index) {
+              final peer = peers[index];
+              return PeerTile(
+                device: peer,
+                onSendFile: () => onSendFile(peer),
+                onSendClipboard: onSendClipboard != null
+                    ? () => onSendClipboard!(peer)
+                    : null,
+              );
+            },
+          ),
+      ],
     );
   }
 }

@@ -12,6 +12,7 @@ import '../features/discovery/widgets/device_identity_card.dart';
 import '../features/discovery/widgets/discovery_app_bar.dart';
 import '../features/discovery/widgets/edit_name_dialog.dart';
 import '../features/discovery/widgets/peer_list_view.dart';
+import '../features/discovery/widgets/peer_radar.dart';
 import '../features/discovery/widgets/send_by_ip_sheet.dart';
 import '../features/history/widgets/history_modal.dart';
 import '../features/transfer/widgets/active_transfer_bar.dart';
@@ -19,7 +20,7 @@ import '../features/transfer/widgets/incoming_transfer_dialog.dart';
 import '../features/transfer/widgets/transfer_progress_modal.dart';
 import '../features/web_share/web_share_modal.dart';
 
-/// Industrial-Grade Clean Architecture Discovery & Sharing Coordinator Screen
+/// Clean coordinator screen adhering strictly to the LocalDrop design spec
 class DiscoveryScreen extends StatefulWidget {
   final DiscoveryState discoveryState;
   final TransferState? transferState;
@@ -48,7 +49,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     widget.discoveryState.initialize();
     _spinController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 650),
     );
   }
 
@@ -99,7 +100,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     if (peers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('No nearby devices discovered yet.', style: GoogleFonts.inter(fontSize: 12)),
+          content: Text(
+            'No nearby devices discovered yet. Tap Web Drop to share via browser.',
+            style: GoogleFonts.inter(fontSize: 12),
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -112,24 +116,40 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceCardDark,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: const Color(0xFF131B2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => SafeArea(
         child: ListView(
           shrinkWrap: true,
           padding: const EdgeInsets.symmetric(vertical: 12),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
+              padding: const EdgeInsets.fromLTRB(18, 6, 18, 10),
               child: Text(
                 'Select Destination Device',
-                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
             ...peers.map((peer) => ListTile(
               leading: Icon(peer.deviceType.icon, color: AppTheme.primaryLight),
-              title: Text(peer.name, style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-              subtitle: Text(peer.ip, style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 11)),
+              title: Text(
+                peer.name,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                peer.ip,
+                style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 11),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 widget.transferState?.pickAndSendFile(peer);
@@ -162,15 +182,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           );
         }
 
-        if (state.isScanning) {
-          if (!_spinController.isAnimating) _spinController.repeat();
-        } else {
-          if (_spinController.isAnimating) {
-            _spinController.stop();
-            _spinController.reset();
-          }
-        }
-
         return Scaffold(
           backgroundColor: AppTheme.bgDark,
           appBar: DiscoveryAppBar(
@@ -186,37 +197,65 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
             children: [
               Column(
                 children: [
-                  DeviceIdentityCard(
-                    local: local,
-                    isWebSharingActive: webShare?.isSharing ?? false,
-                    webPortalUrl: webShare?.cleanWebUrl,
-                    onEditName: () => _onEditName(context, local.name),
-                    onWebShareTap: () => _onWebShare(context, local.ip),
-                  ),
-                  if (transfer?.activeTransfer != null)
-                    ActiveTransferBar(
-                      item: transfer!.activeTransfer!,
-                      onCancel: () => transfer.cancelActiveTransfer(),
-                      onDismiss: () => transfer.clearActiveTransfer(),
-                    ),
                   Expanded(
                     child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
-                      child: PeerListView(
-                        peers: state.peers,
-                        isScanning: state.isScanning,
-                        onSendFile: (peer) => transfer?.pickAndSendFile(peer),
-                        onSendClipboard: (peer) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Clipboard sync with ${peer.name} enabled soon.', style: GoogleFonts.inter(fontSize: 12)),
-                              behavior: SnackBarBehavior.floating,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // 1. Centered Status Pill & Device Name
+                          DeviceIdentityCard(
+                            local: local,
+                            isWebSharingActive: webShare?.isSharing ?? false,
+                            webPortalUrl: webShare?.cleanWebUrl,
+                            onEditName: () => _onEditName(context, local.name),
+                            onWebShareTap: () => _onWebShare(context, local.ip),
+                          ),
+
+                          // 2. Central Radar Canvas with concentric rings and orbiting peers
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: PeerRadar(
+                              localDevice: local,
+                              peers: state.peers,
+                              isScanning: state.isScanning,
+                              onPeerTap: (peer) => transfer?.pickAndSendFile(peer),
+                              onCenterTap: () => _onEditName(context, local.name),
                             ),
-                          );
-                        },
+                          ),
+
+                          // Active transfer status bar (if active)
+                          if (transfer?.activeTransfer != null)
+                            ActiveTransferBar(
+                              item: transfer!.activeTransfer!,
+                              onCancel: () => transfer.cancelActiveTransfer(),
+                              onDismiss: () => transfer.clearActiveTransfer(),
+                            ),
+
+                          // 3. Nearby Devices List
+                          PeerListView(
+                            peers: state.peers,
+                            isScanning: state.isScanning,
+                            onSendFile: (peer) => transfer?.pickAndSendFile(peer),
+                            onSendClipboard: (peer) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Clipboard sharing with ${peer.name} triggered.',
+                                    style: GoogleFonts.inter(fontSize: 12),
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                       ),
                     ),
                   ),
+
+                  // 4. Bottom Broadcast & Lossless Card
                   ActionDock(
                     isWebPortalLive: webShare?.isSharing ?? false,
                     onSendFiles: () => _onBroadcastTap(context, state.peers),
@@ -224,6 +263,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                   ),
                 ],
               ),
+
+              // Overlays for Incoming and Progress
               if (transfer != null && transfer.hasIncomingPrompt)
                 Container(
                   color: Colors.black.withValues(alpha: 0.75),
