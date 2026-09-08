@@ -45,5 +45,19 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- LocalDrop: Bonjour & Local Network Permissions for device discovery -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>LocalDrop uses your local network to discover nearby devices and transfer files securely.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_localdrop._tcp</string>
+	</array>
+
+	<!-- LocalDrop: Enable saving & opening received files in iOS Files app -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>
