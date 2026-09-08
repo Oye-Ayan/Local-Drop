@@ -6,22 +6,26 @@ import '../../models/device_model.dart';
 import '../../services/history_service.dart';
 import '../../state/discovery_state.dart';
 import '../../state/transfer_state.dart';
+import '../../state/web_share_state.dart';
 import '../widgets/device_card.dart';
 import '../widgets/history_modal.dart';
 import '../widgets/peer_radar.dart';
 import '../widgets/transfer_modals.dart';
+import '../widgets/web_share_modal.dart';
 
 /// Ethereal Obsidian LocalDrop Discovery Screen
 class DiscoveryScreen extends StatefulWidget {
   final DiscoveryState discoveryState;
   final TransferState? transferState;
   final HistoryService? historyService;
+  final WebShareState? webShareState;
 
   const DiscoveryScreen({
     super.key,
     required this.discoveryState,
     this.transferState,
     this.historyService,
+    this.webShareState,
   });
 
   @override
@@ -379,6 +383,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     if (widget.transferState != null) {
       listenables.add(widget.transferState!);
     }
+    if (widget.webShareState != null) {
+      listenables.add(widget.webShareState!);
+    }
 
     return AnimatedBuilder(
       animation: Listenable.merge(listenables),
@@ -446,7 +453,29 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
               ],
             ),
             actions: [
-              // 1. Transfer History Action
+              // 1. Universal Web Share & Offline Hotspot Action
+              IconButton(
+                icon: Badge(
+                  isLabelVisible: widget.webShareState?.isSharing ?? false,
+                  backgroundColor: AppTheme.primary,
+                  smallSize: 8,
+                  child: const Icon(Icons.public_rounded, size: 20),
+                ),
+                tooltip: 'Web Portal & Offline Hotspot (Zero-Install)',
+                color: (widget.webShareState?.isSharing ?? false)
+                    ? AppTheme.primaryLight
+                    : AppTheme.textSecondary,
+                onPressed: () {
+                  if (widget.webShareState != null) {
+                    if (!widget.webShareState!.isSharing) {
+                      widget.webShareState!.startSharing(localIp: local.ip);
+                    }
+                    WebShareModal.show(context, widget.webShareState!);
+                  }
+                },
+              ),
+
+              // 2. Transfer History Action
               IconButton(
                 icon: const Icon(Icons.history_rounded, size: 20),
                 tooltip: 'Transfer History',
@@ -460,7 +489,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                 },
               ),
 
-              // 2. Direct IP Share
+              // 3. Direct IP Share
               IconButton(
                 icon: const Icon(Icons.send_to_mobile_rounded, size: 20),
                 tooltip: 'Direct IP Share',
@@ -468,7 +497,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                 onPressed: () => _showSendByIpDialog(context),
               ),
 
-              // 3. Rescan Network (sleek smooth rotation when scanning, replaces raw spinner)
+              // 4. Rescan Network (smooth rotation when scanning)
               IconButton(
                 icon: state.isScanning
                     ? RotationTransition(
@@ -620,6 +649,40 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
               ),
             ],
           ),
+
+          // 3. Active Web Portal Indicator Pill (if active)
+          if (widget.webShareState?.isSharing ?? false) ...[
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () => WebShareModal.show(context, widget.webShareState!),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.language_rounded, size: 12, color: AppTheme.primaryLight),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Web Portal Live • ${widget.webShareState!.cleanWebUrl}',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryLight,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.qr_code_rounded, size: 12, color: AppTheme.primaryLight),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -627,8 +690,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   /// Interactive Action Zone:
   /// - Floating drag-and-drop target area ("Drop files here or tap to broadcast")
+  /// - Universal Web Share / Offline Hotspot Hub button (Zero-Install)
   /// - Live Transfer Drawer showing progress, speed, and action buttons when active
-  Widget _buildActionZone(List<DeviceModel> peers, TransferState? transfer) {
+  Widget _buildActionZone(
+    DeviceModel local,
+    List<DeviceModel> peers,
+    TransferState? transfer,
+  ) {
     final activeItem = transfer?.activeTransfer;
 
     return Column(
@@ -642,73 +710,189 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
             onDismiss: () => transfer?.clearActiveTransfer(),
           ),
 
-        // 2. Floating Drag-and-Drop / Broadcast Action Zone
+        // 2. Floating Action Controls
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _onBroadcastTap(context, peers),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceDark,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Broadcast / Drag & Drop Target
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _onBroadcastTap(context, peers),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.borderDark, width: 1),
-                  boxShadow: AppTheme.microShadow,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.file_upload_outlined,
-                        color: AppTheme.primaryLight,
-                        size: 20,
-                      ),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 13,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Drop files here or tap to broadcast',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                              letterSpacing: -0.1,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '100% Lossless Original Quality • Bit-for-bit SHA-256',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.primaryLight,
-                            ),
-                          ),
-                        ],
-                      ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceDark,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.borderDark, width: 1),
+                      boxShadow: AppTheme.microShadow,
                     ),
-                  ],
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.file_upload_outlined,
+                            color: AppTheme.primaryLight,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Drop files here or tap to broadcast',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '100% Lossless Original Quality • Bit-for-bit SHA-256',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.primaryLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+
+              const SizedBox(height: 8),
+
+              // Universal Web Drop & Offline Hotspot Hub Button (Zero-Install)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (widget.webShareState != null) {
+                      if (!widget.webShareState!.isSharing) {
+                        widget.webShareState!.startSharing(localIp: local.ip);
+                      }
+                      WebShareModal.show(context, widget.webShareState!);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceCardElevated,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: (widget.webShareState?.isSharing ?? false)
+                            ? AppTheme.primary.withValues(alpha: 0.5)
+                            : AppTheme.borderSubtle,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: AppTheme.accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.public_rounded,
+                            size: 16,
+                            color: AppTheme.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      'Web Drop & Offline Hotspot',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 1.5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.accent.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'No App Needed',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.accent,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                (widget.webShareState?.isSharing ?? false)
+                                    ? 'Portal Live: ${widget.webShareState!.cleanWebUrl}'
+                                    : 'Share with iPhone, Mac, Windows via browser or QR',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10.5,
+                                  color: (widget.webShareState?.isSharing ?? false)
+                                      ? AppTheme.primaryLight
+                                      : AppTheme.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 18,
+                          color: AppTheme.textMuted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -826,7 +1010,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         ),
 
         // Interactive Action Zone
-        _buildActionZone(peers, transfer),
+        _buildActionZone(local, peers, transfer),
       ],
     );
   }
@@ -961,7 +1145,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                         ),
                       ),
               ),
-              _buildActionZone(peers, transfer),
+              _buildActionZone(local, peers, transfer),
             ],
           ),
         ),
