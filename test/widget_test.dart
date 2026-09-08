@@ -11,9 +11,10 @@ import 'package:localdrop/services/transfer_service.dart';
 import 'package:localdrop/state/discovery_state.dart';
 import 'package:localdrop/state/transfer_state.dart';
 import 'package:localdrop/ui/screens/discovery_screen.dart';
-import 'package:localdrop/ui/widgets/device_card.dart';
-import 'package:localdrop/ui/widgets/radar_pulse.dart';
-import 'package:localdrop/ui/widgets/transfer_modals.dart';
+import 'package:localdrop/ui/features/discovery/widgets/device_identity_card.dart';
+import 'package:localdrop/ui/features/discovery/widgets/peer_tile.dart';
+import 'package:localdrop/ui/features/transfer/widgets/incoming_transfer_dialog.dart';
+import 'package:localdrop/ui/features/transfer/widgets/transfer_progress_modal.dart';
 
 void main() {
   group('DeviceModel Tests', () {
@@ -163,7 +164,7 @@ void main() {
           MaterialApp(
             theme: AppTheme.darkTheme,
             home: Scaffold(
-              body: DeviceCard(
+              body: PeerTile(
                 device: peer,
                 onSendFile: () => sendFileTapped = true,
                 onSendClipboard: () => sendClipboardTapped = true,
@@ -175,14 +176,12 @@ void main() {
 
         expect(find.text('Work MacBook Pro Long Name'), findsOneWidget);
         expect(find.text('192.168.1.88:53317'), findsOneWidget);
-        expect(find.text('macOS'), findsOneWidget);
-        expect(find.text('Send File'), findsOneWidget);
-        expect(find.text('Clipboard'), findsOneWidget);
+        expect(find.text('Send'), findsOneWidget);
 
-        await tester.tap(find.text('Send File'));
+        await tester.tap(find.text('Send'));
         expect(sendFileTapped, isTrue);
 
-        await tester.tap(find.text('Clipboard'));
+        await tester.tap(find.byIcon(Icons.copy_rounded));
         expect(sendClipboardTapped, isTrue);
 
         expect(tester.takeException(), isNull);
@@ -334,24 +333,43 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 300));
 
-        expect(find.widgetWithText(DeviceCard, 'Infinix NOTE 7 Lite'), findsOneWidget);
+        expect(find.widgetWithText(PeerTile, 'Infinix NOTE 7 Lite'), findsOneWidget);
         expect(find.text('192.168.1.105:53317'), findsOneWidget);
-        expect(find.text('Send File'), findsOneWidget);
-        expect(find.text('Clipboard'), findsOneWidget);
+        expect(find.text('Send'), findsOneWidget);
 
         // Verify no layout overflow exception
         expect(tester.takeException(), isNull);
       },
     );
 
-    testWidgets('RadarPulse renders without crashing', (tester) async {
+    testWidgets('DeviceIdentityCard renders without crashing', (tester) async {
+      final local = DeviceModel(
+        id: 'local-1',
+        name: 'Host Device',
+        ip: '192.168.1.10',
+        port: 53317,
+        deviceType: DeviceType.desktop,
+        osName: 'Linux',
+        isSelf: true,
+      );
+
       await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: RadarPulse(size: 130))),
+        MaterialApp(
+          theme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: DeviceIdentityCard(
+              local: local,
+              isWebSharingActive: false,
+              onEditName: () {},
+              onWebShareTap: () {},
+            ),
+          ),
+        ),
       );
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(RadarPulse), findsOneWidget);
-      expect(find.byIcon(Icons.wifi_tethering_rounded), findsOneWidget);
+      expect(find.text('Host Device'), findsOneWidget);
+      expect(find.textContaining('192.168.1.10:53317'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
